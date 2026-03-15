@@ -143,7 +143,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        2100,
+        2340,
         300
       ],
       "id": "52292a92-923c-4c12-ad33-dd116426a3a8",
@@ -362,18 +362,18 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://crm.vinapropiedades.com.mx/api/v1/accounts/1/conversations/{{ $json.id }}/messages",
+        "url": "https://crm.vinapropiedades.com.mx/api/v1/accounts/1/conversations/{{ $json.chatwoot_conversation_id }}/messages",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"content\": \"Hola {{$('Normalizar_y_mapear_propiedad').item.json.full_name.split(' ')[0]}}, gracias por tu interés en {{$('Normalizar_y_mapear_propiedad').item.json.property_title}}.\",\n  \"message_type\": \"outgoing\",\n  \"private\": false,\n  \"content_type\": \"text\",\n  \"template_params\": {\n    \"name\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_name_selected}}\",\n    \"category\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_category_selected}}\",\n    \"language\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_language_selected}}\",\n    \"processed_params\": {}\n  }\n}",
+        "jsonBody": "{\n  \"content\": \"Hola {{$('Normalizar_y_mapear_propiedad').item.json.full_name.split(' ')[0]}}, gracias por tu interés en {{$('Normalizar_y_mapear_propiedad').item.json.property_title}}.\",\n  \"message_type\": \"outgoing\",\n  \"private\": false,\n  \"content_type\": \"text\",\n  \"template_params\": {\n    \"name\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_name_selected}}\",\n    \"category\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_category_selected}}\",\n    \"language\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_language_selected}}\",\n    \"processed_params\": {\n      \"1\": \"{{$('Normalizar_y_mapear_propiedad').item.json.full_name.split(' ')[0]}}\",\n      \"2\": \"{{$('Normalizar_y_mapear_propiedad').item.json.property_title}}\"\n    }\n  }\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1860,
+        2100,
         300
       ],
       "id": "b69f4b63-4cb4-4f70-b946-b34645f0adca",
@@ -384,6 +384,19 @@
           "name": "chtawoot api"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Normalizar_ids_contacto_chatwoot').item.json;\nconst response = $json || {};\n\nconst conversationId = Number(\n  response.id ||\n  response.conversation_id ||\n  response.payload?.id ||\n  response.data?.id ||\n  response.result?.id ||\n  0\n) || null;\n\nif (!conversationId) {\n  throw new Error(`No se pudo resolver chatwoot_conversation_id desde Chatwoot_Create_Conversation. Respuesta: ${JSON.stringify(response)}`);\n}\n\nreturn [{\n  json: {\n    ...base,\n    chatwoot_conversation_id: conversationId,\n    chatwoot_conversation_raw: response\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        300
+      ],
+      "id": "2f7e6f4f-7d72-4f90-bef6-cd73e5d0f5f1",
+      "name": "Normalizar_conversation_id"
     }
   ],
   "connections": {
@@ -553,7 +566,7 @@
       "main": [
         [
           {
-            "node": "Chatwoot_Send_Initial_Template",
+            "node": "Normalizar_conversation_id",
             "type": "main",
             "index": 0
           }
@@ -565,6 +578,17 @@
         [
           {
             "node": "Chatwoot_Private_Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar_conversation_id": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Send_Initial_Template",
             "type": "main",
             "index": 0
           }
