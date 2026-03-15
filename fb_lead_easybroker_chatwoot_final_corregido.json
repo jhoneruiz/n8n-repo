@@ -42,7 +42,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $json;\nconst rawPhone = String(row.phone_number || row.telefono || '').trim();\n\n// Limpieza para formatos como :p512777XXXX, p:521999..., +52..., etc.\nlet normalized = rawPhone\n  .replace(/^\\s*:?p\\s*/i, '')\n  .replace(/[^\\d+]/g, '');\n\n// Conservamos solo dígitos para validar longitud\nlet digits = normalized.replace(/\\D/g, '');\n\n// Reglas para MX/WhatsApp\nif (digits.length === 10) {\n  digits = `52${digits}`;\n} else if (digits.length === 11 && digits.startsWith('1')) {\n  digits = `52${digits}`;\n}\n\nif (digits.length === 12 && digits.startsWith('52')) {\n  normalized = `+${digits}`;\n} else if (digits.length === 13 && digits.startsWith('521')) {\n  normalized = `+${digits}`;\n} else {\n  normalized = `+${digits}`;\n}\n\nconst campaign = String(row.campaign_name || '').toLowerCase().trim();\nconst ad = String(row.ad_name || '').toLowerCase().trim();\nconst form = String(row.form_name || '').toLowerCase().trim();\n\nlet property = {\n  property_id: 'REEMPLAZAR_PUBLIC_ID_CAUCEL',\n  property_title: 'Casa en Caucel',\n  property_zone: 'Caucel',\n  template_name: 'caucel_info',\n  template_language: 'es_MX',\n  source_name: 'Facebook Lead Ads - Caucel'\n};\n\nif (campaign.includes('caucel') || ad.includes('caucel') || form.includes('caucel')) {\n  property = {\n    property_id: 'REEMPLAZAR_PUBLIC_ID_CAUCEL',\n    property_title: 'Casa en Caucel',\n    property_zone: 'Caucel',\n    template_name: 'caucel_info',\n    template_language: 'es_MX',\n    source_name: 'Facebook Lead Ads - Caucel'\n  };\n}\n\nconst paymentMethod = row['¿con_qué_forma_de_pago_o_crédito_planeas_comprar?'] || row['¿cuál_es_tu_método_de_compra_o_tipo_de_crédito?'] || '';\nconst buyTimeline = row['¿para_cuándo_necesitas_tener_lista_tu_casa?'] || row['¿qué_tan_pronto_te_gustaría_mudarte?'] || '';\n\nreturn [{\n  json: {\n    ...row,\n    phone_original: rawPhone,\n    phone_clean: normalized,\n    phone_digits: digits,\n    payment_method: paymentMethod,\n    buy_timeline: buyTimeline,\n    ...property\n  }\n}];"
+        "jsCode": "const row = $json;\nconst rawPhone = String(row.phone_number || row.telefono || '').trim();\n\n// Limpieza para formatos como :p512777XXXX, p:521999..., +52..., etc.\nlet normalized = rawPhone\n  .replace(/^\\s*:?p\\s*/i, '')\n  .replace(/[^\\d+]/g, '');\n\n// Conservamos solo dígitos para validar longitud\nlet digits = normalized.replace(/\\D/g, '');\n\n// Reglas para MX/WhatsApp\nif (digits.length === 10) {\n  digits = `52${digits}`;\n} else if (digits.length === 11 && digits.startsWith('1')) {\n  digits = `52${digits}`;\n}\n\nif (digits.length === 12 && digits.startsWith('52')) {\n  normalized = `+${digits}`;\n} else if (digits.length === 13 && digits.startsWith('521')) {\n  normalized = `+${digits}`;\n} else {\n  normalized = `+${digits}`;\n}\n\nconst campaign = String(row.campaign_name || '').toLowerCase().trim();\nconst ad = String(row.ad_name || '').toLowerCase().trim();\nconst form = String(row.form_name || '').toLowerCase().trim();\n\nlet property = {\n  property_id: 'REEMPLAZAR_PUBLIC_ID_CAUCEL',\n  property_title: 'Casa en Caucel',\n  property_zone: 'Caucel',\n  template_name: 'caucel_info',\n  template_language: 'es_MX',\n  source_name: 'Facebook Lead Ads - Caucel'\n};\n\nif (campaign.includes('caucel') || ad.includes('caucel') || form.includes('caucel')) {\n  property = {\n    property_id: 'REEMPLAZAR_PUBLIC_ID_CAUCEL',\n    property_title: 'Casa en Caucel',\n    property_zone: 'Caucel',\n    template_name: 'caucel_info',\n    template_language: 'es_MX',\n    source_name: 'Facebook Lead Ads - Caucel'\n  };\n}\n\nconst paymentMethod = row['¿con_qué_forma_de_pago_o_crédito_planeas_comprar?'] || row['¿cuál_es_tu_método_de_compra_o_tipo_de_crédito?'] || '';\nconst buyTimeline = row['¿para_cuándo_necesitas_tener_lista_tu_casa?'] || row['¿qué_tan_pronto_te_gustaría_mudarte?'] || '';\n\n// Permite escoger plantilla desde la fila del Sheet (si viene), con fallback por propiedad\nconst templateNameFromSheet = String(row.template_name || row.template || row.chatwoot_template || '').trim();\nconst templateLanguageFromSheet = String(row.template_language || row.chatwoot_template_language || '').trim();\n\nreturn [{\n  json: {\n    ...row,\n    phone_original: rawPhone,\n    phone_clean: normalized,\n    phone_digits: digits,\n    payment_method: paymentMethod,\n    buy_timeline: buyTimeline,\n    template_name_selected: templateNameFromSheet || property.template_name,\n    template_language_selected: templateLanguageFromSheet || property.template_language,\n    template_category_selected: 'MARKETING',\n    ...property\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -111,7 +111,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"source_id\": \"{{$json.chatwoot_contact_source_id}}\",\n  \"inbox_id\": 4,\n  \"contact_id\": {{$json.chatwoot_contact_id}},\n  \"status\": \"open\",\n  \"custom_attributes\": {\n    \"source\": \"facebook_lead_ads\",\n    \"campaign_name\": \"{{$json.campaign_name}}\",\n    \"ad_name\": \"{{$json.ad_name}}\",\n    \"payment_method\": \"{{$json.payment_method}}\",\n    \"buy_timeline\": \"{{$json.buy_timeline}}\",\n    \"property_id\": \"{{$json.property_id}}\",\n    \"property_title\": \"{{$json.property_title}}\",\n    \"property_zone\": \"{{$json.property_zone}}\",\n    \"sheet_row_id\": \"{{$json.id}}\"\n  },\n  \"message\": {\n    \"content\": \"Hola {{$json.full_name.split(' ')[0]}}, gracias por tu interés en {{$json.property_title}}.\",\n    \"template_params\": {\n      \"name\": \"{{$json.template_name}}\",\n      \"category\": \"MARKETING\",\n      \"language\": \"{{$json.template_language}}\",\n      \"processed_params\": {}\n    }\n  }\n}",
+        "jsonBody": "{\n  \"source_id\": \"{{$json.chatwoot_contact_source_id}}\",\n  \"inbox_id\": 4,\n  \"contact_id\": {{$json.chatwoot_contact_id}},\n  \"status\": \"open\",\n  \"custom_attributes\": {\n    \"source\": \"facebook_lead_ads\",\n    \"campaign_name\": \"{{$json.campaign_name}}\",\n    \"ad_name\": \"{{$json.ad_name}}\",\n    \"payment_method\": \"{{$json.payment_method}}\",\n    \"buy_timeline\": \"{{$json.buy_timeline}}\",\n    \"property_id\": \"{{$json.property_id}}\",\n    \"property_title\": \"{{$json.property_title}}\",\n    \"property_zone\": \"{{$json.property_zone}}\",\n    \"template_name_selected\": \"{{$json.template_name_selected}}\",\n    \"template_language_selected\": \"{{$json.template_language_selected}}\",\n    \"sheet_row_id\": \"{{$json.id}}\"\n  }\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -121,7 +121,7 @@
         300
       ],
       "id": "17be8805-9720-4db5-8071-e91ffb4cb9d6",
-      "name": "Chatwoot_Create_Conversation_And_Template",
+      "name": "Chatwoot_Create_Conversation",
       "credentials": {
         "httpHeaderAuth": {
           "id": "cHB9lH3QVctMzrps",
@@ -137,13 +137,13 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"content\": \"Lead procesado desde Google Sheets/Facebook Ads\\n\\nNombre: {{$('Normalizar_y_mapear_propiedad').item.json.full_name}}\\nTeléfono original: {{$('Normalizar_y_mapear_propiedad').item.json.phone_original}}\\nTeléfono normalizado: {{$('Normalizar_y_mapear_propiedad').item.json.phone_clean}}\\nEstado contacto Chatwoot: {{$('Normalizar_ids_contacto_chatwoot').item.json.chatwoot_contact_status}}\\nCampaña: {{$('Normalizar_y_mapear_propiedad').item.json.campaign_name}}\\nAnuncio: {{$('Normalizar_y_mapear_propiedad').item.json.ad_name}}\\nPropiedad: {{$('Normalizar_y_mapear_propiedad').item.json.property_title}}\\nForma de pago: {{$('Normalizar_y_mapear_propiedad').item.json.payment_method}}\\nTiempo de compra: {{$('Normalizar_y_mapear_propiedad').item.json.buy_timeline}}\\nEasyBroker response: {{JSON.stringify($('EasyBroker_Create_Contact_Request').item.json)}}\",\n  \"message_type\": \"outgoing\",\n  \"private\": true,\n  \"content_type\": \"text\"\n}",
+        "jsonBody": "{\n  \"content\": \"Lead procesado desde Google Sheets/Facebook Ads\\n\\nNombre: {{$('Normalizar_y_mapear_propiedad').item.json.full_name}}\\nTeléfono original: {{$('Normalizar_y_mapear_propiedad').item.json.phone_original}}\\nTeléfono normalizado: {{$('Normalizar_y_mapear_propiedad').item.json.phone_clean}}\\nEstado contacto Chatwoot: {{$('Normalizar_ids_contacto_chatwoot').item.json.chatwoot_contact_status}}\\nPlantilla seleccionada: {{$('Normalizar_y_mapear_propiedad').item.json.template_name_selected}} ({{$('Normalizar_y_mapear_propiedad').item.json.template_language_selected}})\\nCampaña: {{$('Normalizar_y_mapear_propiedad').item.json.campaign_name}}\\nAnuncio: {{$('Normalizar_y_mapear_propiedad').item.json.ad_name}}\\nPropiedad: {{$('Normalizar_y_mapear_propiedad').item.json.property_title}}\\nForma de pago: {{$('Normalizar_y_mapear_propiedad').item.json.payment_method}}\\nTiempo de compra: {{$('Normalizar_y_mapear_propiedad').item.json.buy_timeline}}\\nEasyBroker response: {{JSON.stringify($('EasyBroker_Create_Contact_Request').item.json)}}\",\n  \"message_type\": \"outgoing\",\n  \"private\": true,\n  \"content_type\": \"text\"\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1860,
+        2100,
         300
       ],
       "id": "52292a92-923c-4c12-ad33-dd116426a3a8",
@@ -358,6 +358,32 @@
       ],
       "id": "2f34a704-b17f-445f-84b1-b9528ff19d7c",
       "name": "Resolver_Source_ID_Desde_Detalle"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.vinapropiedades.com.mx/api/v1/accounts/1/conversations/{{ $json.id }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"content\": \"Hola {{$('Normalizar_y_mapear_propiedad').item.json.full_name.split(' ')[0]}}, gracias por tu interés en {{$('Normalizar_y_mapear_propiedad').item.json.property_title}}.\",\n  \"message_type\": \"outgoing\",\n  \"private\": false,\n  \"content_type\": \"text\",\n  \"template_params\": {\n    \"name\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_name_selected}}\",\n    \"category\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_category_selected}}\",\n    \"language\": \"{{$('Normalizar_y_mapear_propiedad').item.json.template_language_selected}}\",\n    \"processed_params\": {}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1860,
+        300
+      ],
+      "id": "b69f4b63-4cb4-4f70-b946-b34645f0adca",
+      "name": "Chatwoot_Send_Initial_Template",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
     }
   ],
   "connections": {
@@ -483,22 +509,11 @@
         ]
       ]
     },
-    "Chatwoot_Create_Conversation_And_Template": {
-      "main": [
-        [
-          {
-            "node": "Chatwoot_Private_Note",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "IF_Tiene_Source_ID": {
       "main": [
         [
           {
-            "node": "Chatwoot_Create_Conversation_And_Template",
+            "node": "Chatwoot_Create_Conversation",
             "type": "main",
             "index": 0
           }
@@ -527,7 +542,29 @@
       "main": [
         [
           {
-            "node": "Chatwoot_Create_Conversation_And_Template",
+            "node": "Chatwoot_Create_Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Create_Conversation": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Send_Initial_Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Send_Initial_Template": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Private_Note",
             "type": "main",
             "index": 0
           }
