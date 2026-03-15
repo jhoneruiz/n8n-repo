@@ -117,7 +117,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1080,
+        1620,
         300
       ],
       "id": "17be8805-9720-4db5-8071-e91ffb4cb9d6",
@@ -143,7 +143,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1320,
+        1860,
         300
       ],
       "id": "52292a92-923c-4c12-ad33-dd116426a3a8",
@@ -278,7 +278,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const prior = $('Resolver_contacto_chatwoot').item.json;\nconst response = $json;\nconst contact = Array.isArray(response.payload) ? response.payload[0] : response.payload || response;\n\nconst contactId = contact?.id || prior.chatwoot_contact_id || null;\nconst inboxes = Array.isArray(contact?.contact_inboxes) ? contact.contact_inboxes : (Array.isArray(prior?.chatwoot_contact_raw?.contact_inboxes) ? prior.chatwoot_contact_raw.contact_inboxes : []);\nconst inbox4 = inboxes.find(ci => Number(ci?.inbox?.id) === 4);\nconst sourceId = inbox4?.source_id || prior.chatwoot_contact_source_id || null;\n\nif (!contactId) {\n  throw new Error('No se pudo resolver chatwoot_contact_id (ni en búsqueda ni en create/update).');\n}\nif (!sourceId) {\n  throw new Error('No se pudo resolver source_id del inbox 4. Verifica que el contacto esté asociado al inbox 4.');\n}\n\nreturn [{\n  json: {\n    ...prior,\n    chatwoot_contact_id: Number(contactId),\n    chatwoot_contact_source_id: String(sourceId),\n    chatwoot_contact_status: prior.chatwoot_contact_exists ? 'existing_updated' : 'created'\n  }\n}];"
+        "jsCode": "const prior = $('Resolver_contacto_chatwoot').item.json;\nconst response = $json || {};\n\nconst pickFirstObject = (value) => {\n  if (!value) return null;\n  if (Array.isArray(value)) {\n    for (const item of value) {\n      const found = pickFirstObject(item);\n      if (found) return found;\n    }\n    return null;\n  }\n  if (typeof value === 'object') return value;\n  return null;\n};\n\nconst candidates = [\n  response,\n  response.payload,\n  Array.isArray(response.payload) ? response.payload[0] : null,\n  response.data,\n  response.contact,\n  response.payload?.contact,\n  response.data?.contact,\n  response.result,\n  response.result?.contact,\n].filter(Boolean);\n\nlet contact = null;\nfor (const c of candidates) {\n  const found = pickFirstObject(c);\n  if (found) {\n    contact = found;\n    break;\n  }\n}\n\nconst nestedId = contact?.id || contact?.contact_id || contact?.payload?.id || null;\nconst contactId = Number(prior.chatwoot_contact_id || nestedId || 0) || null;\n\nconst inboxesFromContact = Array.isArray(contact?.contact_inboxes) ? contact.contact_inboxes : [];\nconst inboxesFromPrior = Array.isArray(prior?.chatwoot_contact_raw?.contact_inboxes) ? prior.chatwoot_contact_raw.contact_inboxes : [];\nconst allInboxes = [...inboxesFromContact, ...inboxesFromPrior];\nconst inbox4 = allInboxes.find(ci => Number(ci?.inbox?.id) === 4 || Number(ci?.inbox_id) === 4);\n\nconst sourceId = String(\n  prior.chatwoot_contact_source_id ||\n  inbox4?.source_id ||\n  contact?.source_id ||\n  contact?.contact_inbox?.source_id ||\n  ''\n).trim() || null;\n\nif (!contactId) {\n  throw new Error(`No se pudo resolver chatwoot_contact_id. Revisa respuesta de create/update: ${JSON.stringify(response)}`);\n}\n\nreturn [{\n  json: {\n    ...prior,\n    chatwoot_contact_id: contactId,\n    chatwoot_contact_source_id: sourceId,\n    chatwoot_contact_status: prior.chatwoot_contact_exists ? 'existing_updated' : 'created',\n    chatwoot_contact_raw_resolved: contact || response,\n    needs_source_lookup: !sourceId\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -288,6 +288,76 @@
       ],
       "id": "2f3e6667-0a3c-4d3e-a18f-dde9ddc59e62",
       "name": "Normalizar_ids_contacto_chatwoot"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c90ca2ea-17f3-4571-9a47-1973f687bf34",
+              "leftValue": "={{!$json.needs_source_lookup}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        300
+      ],
+      "id": "f1a3ca1f-75f8-4927-b6fe-f534f5f65a42",
+      "name": "IF_Tiene_Source_ID"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.vinapropiedades.com.mx/api/v1/accounts/1/contacts/{{$json.chatwoot_contact_id}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        440
+      ],
+      "id": "8c3f19a9-c73f-4f30-bf9e-3018a74ddb0b",
+      "name": "Chatwoot_Get_Contact_Detail",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cHB9lH3QVctMzrps",
+          "name": "chtawoot api"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Normalizar_ids_contacto_chatwoot').item.json;\nconst response = $json || {};\n\nconst candidates = [\n  response,\n  response.payload,\n  Array.isArray(response.payload) ? response.payload[0] : null,\n  response.data,\n  response.contact,\n  response.payload?.contact,\n  response.data?.contact,\n  response.result,\n  response.result?.contact,\n].filter(Boolean);\n\nlet contact = null;\nfor (const c of candidates) {\n  if (Array.isArray(c)) {\n    contact = c.find(i => i && typeof i === 'object') || contact;\n  } else if (c && typeof c === 'object') {\n    contact = c;\n  }\n  if (contact) break;\n}\n\nconst inboxes = Array.isArray(contact?.contact_inboxes) ? contact.contact_inboxes : [];\nconst inbox4 = inboxes.find(ci => Number(ci?.inbox?.id) === 4 || Number(ci?.inbox_id) === 4);\nconst sourceId = String(inbox4?.source_id || contact?.source_id || '').trim();\n\nif (!sourceId) {\n  throw new Error(`No se pudo resolver source_id del inbox 4 incluso consultando detalle de contacto. Respuesta: ${JSON.stringify(response)}`);\n}\n\nreturn [{\n  json: {\n    ...base,\n    chatwoot_contact_source_id: sourceId,\n    needs_source_lookup: false,\n    chatwoot_contact_detail_raw: contact || response\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        440
+      ],
+      "id": "2f34a704-b17f-445f-84b1-b9528ff19d7c",
+      "name": "Resolver_Source_ID_Desde_Detalle"
     }
   ],
   "connections": {
@@ -406,7 +476,7 @@
       "main": [
         [
           {
-            "node": "Chatwoot_Create_Conversation_And_Template",
+            "node": "IF_Tiene_Source_ID",
             "type": "main",
             "index": 0
           }
@@ -418,6 +488,46 @@
         [
           {
             "node": "Chatwoot_Private_Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_Tiene_Source_ID": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Create_Conversation_And_Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chatwoot_Get_Contact_Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatwoot_Get_Contact_Detail": {
+      "main": [
+        [
+          {
+            "node": "Resolver_Source_ID_Desde_Detalle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver_Source_ID_Desde_Detalle": {
+      "main": [
+        [
+          {
+            "node": "Chatwoot_Create_Conversation_And_Template",
             "type": "main",
             "index": 0
           }
